@@ -1,0 +1,6 @@
+name: simple_retry
+version: 1.0.0
+
+development_dependencies:
+  ameba:
+    github: veelenga/ameba
