@@ -15,7 +15,7 @@ describe SimpleRetry do
       SimpleRetry.try_to(raise_on: DivisionByZeroError) do |count|
         raise "some issue" if count < 5
         final_count = count
-        result = count // 0
+        count // 0
         count
       end
     end
@@ -27,7 +27,7 @@ describe SimpleRetry do
     expect_raises(Exception) do
       SimpleRetry.try_to(retry_on: DivisionByZeroError) do |count|
         final_count = count
-        result = count // 0 if count < 3
+        count // 0 if count < 3
         raise "different error"
         count
       end
@@ -52,7 +52,7 @@ describe SimpleRetry do
     final_count = SimpleRetry.try_to(
       base_interval: 10.milliseconds,
       max_interval: 50.milliseconds
-    ) do |count, last_error, sleep_time|
+    ) do |count, _, sleep_time|
       times << sleep_time
       raise "some issue" if count < 7
       count
@@ -75,7 +75,7 @@ describe SimpleRetry do
       randomise: 9.milliseconds,
       base_interval: 10.milliseconds,
       max_interval: 50.milliseconds
-    ) do |count, last_error, sleep_time|
+    ) do |count, _, sleep_time|
       times << sleep_time
       raise "some issue" if count < 7
       count

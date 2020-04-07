@@ -33,6 +33,7 @@ module SimpleRetry
     end
   end
 
+  # ameba:disable Metrics/CyclomaticComplexity
   def try_to(
     max_attempts : Int? = nil,
     retry_on : Exception.class | Nil = nil,
@@ -73,6 +74,7 @@ module SimpleRetry
     end
   end
 
+  # ameba:disable Metrics/CyclomaticComplexity
   def try_to(
     randomise : Time::Span,
     max_attempts : Int? = nil,
