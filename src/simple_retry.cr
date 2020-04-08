@@ -6,44 +6,40 @@ module SimpleRetry
     klass >= error.class
   end
 
-  ZERO_SECONDS = 0.seconds
+  private ZERO_SECONDS = 0.seconds
 
-  def try_to(
-    max_attempts : Int? = nil,
-    retry_on : Exception.class | Nil = nil,
-    raise_on : Exception.class | Nil = nil
-  )
-    attempt = 1_u64
-    last_error = nil
-
-    loop do
-      begin
-        break yield(attempt, last_error, ZERO_SECONDS)
-      rescue error
-        raise error if max_attempts && attempt >= max_attempts
-        raise error if retry_on && !error_matches?(retry_on, error)
-        raise error if raise_on && error_matches?(raise_on, error)
-        last_error = error
-
-        Fiber.yield
-
-        # we don't want to error if we overflow
-        attempt = attempt &+ 1
-      end
-    end
-  end
-
-  # ameba:disable Metrics/CyclomaticComplexity
+  # Immediate retry
   def try_to(
     max_attempts : Int? = nil,
     retry_on : Exception.class | Nil = nil,
     raise_on : Exception.class | Nil = nil,
+    & : (UInt64, Exception?, Time::Span) ->
+  )
+    try_to(base_interval: ZERO_SECONDS, max_attempts: max_attempts, retry_on: retry_on, raise_on: raise_on) do |a, l, i|
+      yield(a, l, i)
+    end
+  end
+
+  # Retry with backoff
+  #
+  # ameba:disable Metrics/CyclomaticComplexity
+  def try_to(
+    base_interval : Time::Span,
+    retry_on : Exception.class | Nil = nil,
+    raise_on : Exception.class | Nil = nil,
+    max_attempts : Int? = nil,
     max_interval : Time::Span? = nil,
-    base_interval : Time::Span = 50.milliseconds
+    max_elapsed_time : Time::Span? = nil,
+    randomise : Time::Span? = nil,
+    & : (UInt64, Exception?, Time::Span) ->
   )
     attempt = 1_u64
     last_error = nil
-    retry_in = 0.seconds
+    retry_in = ZERO_SECONDS
+    start_time = Time.monotonic
+
+    # The range of seconds to generate a random offset within
+    random_seconds = !randomise.nil? ? randomise.total_seconds : nil
 
     loop do
       begin
@@ -52,75 +48,44 @@ module SimpleRetry
         raise error if max_attempts && attempt >= max_attempts
         raise error if retry_on && !error_matches?(retry_on, error)
         raise error if raise_on && error_matches?(raise_on, error)
+
+        elapsed_time = Time.monotonic - start_time
+
+        # Calculate a random offset, if necessary
+        random_offset = !random_seconds.nil? ? Random.rand(random_seconds).seconds : nil
+        retry_in = calculate_interval(retry_in, base_interval, random_offset, max_interval)
+
+        raise error if max_elapsed_time && (elapsed_time + retry_in) > max_elapsed_time
+
         last_error = error
 
         sleep retry_in
 
         # we don't want to error if we overflow
         attempt = attempt &+ 1
-
-        if retry_in.to_f == 0_f64
-          retry_in = base_interval
-        else
-          begin
-            retry_in = retry_in * 2
-          rescue OverflowError
-            # you're waiting a long time if you hit this
-          end
-        end
-
-        retry_in = max_interval if max_interval && retry_in > max_interval
       end
     end
   end
 
-  # ameba:disable Metrics/CyclomaticComplexity
-  def try_to(
-    randomise : Time::Span,
-    max_attempts : Int? = nil,
-    retry_on : Exception.class | Nil = nil,
-    raise_on : Exception.class | Nil = nil,
-    max_interval : Time::Span? = nil,
-    base_interval : Time::Span = 50.milliseconds
-  )
-    if max_interval && randomise > max_interval
-      raise "max_interval (#{max_interval}) must be greater than randomise (#{randomise})"
+  # Calculate the next interval
+  #
+  private def calculate_interval(current_interval : Time::Span, base_interval : Time::Span, offset : Time::Span? = nil, max_interval : Time::Span? = nil)
+    interval = if current_interval.to_f == 0_f64
+                 base_interval
+               else
+                 current_interval * 2
+               end
+
+    interval += offset if offset
+
+    if max_interval && interval > max_interval
+      interval = max_interval
+      interval -= offset if offset
     end
 
-    attempt = 1_u64
-    last_error = nil
-    retry_in = 0.seconds
-    randomise = randomise.total_seconds
-
-    loop do
-      begin
-        break yield(attempt, last_error, retry_in)
-      rescue error
-        raise error if max_attempts && attempt >= max_attempts
-        raise error if retry_on && !error_matches?(retry_on, error)
-        raise error if raise_on && error_matches?(raise_on, error)
-        last_error = error
-
-        sleep retry_in
-
-        # we don't want to error if we overflow
-        attempt = attempt &+ 1
-        random_time = Random.rand(randomise).seconds
-
-        begin
-          if retry_in.to_f == 0_f64
-            retry_in = base_interval + random_time
-          else
-            retry_in = retry_in * 2 + random_time
-          end
-        rescue OverflowError
-          # you're waiting a long time if you hit this
-        end
-
-        if max_interval && retry_in > max_interval
-          retry_in = max_interval - random_time
-        end
-      end
-    end
+    interval
+  rescue OverflowError
+    # You've waiting a long time if you hit this
+    ZERO_SECONDS
   end
 end

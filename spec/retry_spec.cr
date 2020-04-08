@@ -99,4 +99,15 @@ describe SimpleRetry do
       end
     end
   end
+
+  it "fails after reaching time limit" do
+    final_count = 0
+    expect_raises(Exception) do
+      SimpleRetry.try_to(base_interval: 1.milliseconds, max_interval: 1.milliseconds, max_elapsed_time: 5.milliseconds) do |count|
+        final_count = count
+        raise "some issue"
+      end
+    end
+    [4, 5].should contain final_count
+  end
 end
