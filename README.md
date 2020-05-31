@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/spider-gazelle/simple_retry.svg?branch=master)](https://travis-ci.org/spider-gazelle/simple_retry)
+[![Build Status](https://travis-ci.com/spider-gazelle/simple_retry.svg?branch=master)](https://travis-ci.com/github/spider-gazelle/simple_retry)
 
 
 # Simple Retry
