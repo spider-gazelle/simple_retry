@@ -1,7 +1,6 @@
-[![Build Status](https://travis-ci.com/spider-gazelle/simple_retry.svg?branch=master)](https://travis-ci.com/github/spider-gazelle/simple_retry)
-
-
 # Simple Retry
+
+[![CI](https://github.com/spider-gazelle/simple_retry/actions/workflows/ci.yml/badge.svg)](https://github.com/spider-gazelle/simple_retry/actions/workflows/ci.yml)
 
 A library for managing blocks of code that you might want to retry when an error occurs.
 
