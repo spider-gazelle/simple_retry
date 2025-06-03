@@ -15,8 +15,8 @@ module SimpleRetry
     raise_on : Exception.class | Nil = nil,
     & : (UInt64, Exception?, Time::Span) ->
   )
-    try_to(base_interval: ZERO_SECONDS, max_attempts: max_attempts, retry_on: retry_on, raise_on: raise_on) do |a, l, i|
-      yield(a, l, i)
+    try_to(base_interval: ZERO_SECONDS, max_attempts: max_attempts, retry_on: retry_on, raise_on: raise_on) do |attempt, last_error, retry_in|
+      yield(attempt, last_error, retry_in)
     end
   end
 
